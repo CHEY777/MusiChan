@@ -4,70 +4,90 @@ import chalk from 'chalk';
 import qrcode from 'qrcode-terminal';
 import CommandHandler from './libs/CommandHandler.js';
 
-// 🌸 Cute connection messages
-const cuteLog = (text) => console.log(chalk.magenta(`🌸 ${text} ✨`));
-const errorLog = (text) => console.log(chalk.red(`❌ ${text} 💔`));
+// 🌸 Cute console styling
+const successLog = (text) => console.log(chalk.green(`✨ ${text}`));
+const errorLog = (text) => console.log(chalk.red(`❌ ${text}`));
+const infoLog = (text) => console.log(chalk.blue(`ℹ️ ${text}`));
 
 async function connectToWhatsApp() {
-  // 🎀 Initialize auth and command handler
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-  const handler = new CommandHandler();
+  try {
+    // 🎀 Initialize auth state
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+    const handler = new CommandHandler();
 
-  // ✨ Create socket with cute logger
-  const sock = makeWASocket({
-    auth: state,
-    logger: pino({ level: 'silent' }), // No annoying logs!
-    printQRInTerminal: false, // We'll make our own cute QR!
-    browser: ['Chey-San Bot', 'Safari', '1.0.0']
-  });
+    // ✨ Create connection
+    const sock = makeWASocket({
+      auth: state,
+      logger: pino({ level: 'silent' }),
+      printQRInTerminal: false, // We'll make our own QR
+      browser: ['Chey-San Bot', 'Safari', '3.0'],
+      markOnlineOnConnect: true
+    });
 
-  // 🎀 QR Code Generator (cuter than default!)
-  sock.ev.on('connection.update', ({ qr }) => {
-    if (qr) {
-      cuteLog('Scan this QR with WhatsApp~ 🎀');
-      qrcode.generate(qr, { small: true });
-    }
-  });
+    // 💖 QR Code Generator
+    sock.ev.on('connection.update', ({ qr }) => {
+      if (qr) {
+        infoLog('Scan this QR with WhatsApp:');
+        qrcode.generate(qr, { small: true });
+      }
+    });
 
-  // 💖 Save session when credentials update
-  sock.ev.on('creds.update', saveCreds);
+    // 🎀 Save credentials when updated
+    sock.ev.on('creds.update', saveCreds);
 
-  // 🌸 Handle connection events
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
-    if (connection === 'close') {
-      const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      errorLog(`Disconnected! ${shouldReconnect ? 'Reconnecting...' : 'Please restart bot.'}`);
-      if (shouldReconnect) connectToWhatsApp();
-    } else if (connection === 'open') {
-      cuteLog('Successfully connected to WhatsApp! 💌');
-    }
-  });
+    // 🌸 Connection status handler
+    sock.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect } = update;
+      if (connection === 'close') {
+        const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+        errorLog(`Connection closed. ${shouldReconnect ? 'Reconnecting...' : 'Please restart bot.'}`);
+        if (shouldReconnect) setTimeout(connectToWhatsApp, 5000);
+      } else if (connection === 'open') {
+        successLog('Successfully connected to WhatsApp!');
+      }
+    });
 
-  // 🎀 Message handler (with cute replies!)
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    // 📩 Message handler
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+      try {
+        const msg = messages[0];
+        if (!msg.message || msg.key.fromMe) return;
 
-    const M = {
-      from: msg.key.remoteJid,
-      body: msg.message.conversation || msg.message.extendedTextMessage?.text || '',
-      reply: (text) => sock.sendMessage(msg.key.remoteJid, { text }),
-      replyRaw: (content) => sock.sendMessage(msg.key.remoteJid, content)
-    };
+        const M = {
+          from: msg.key.remoteJid,
+          sender: msg.key.participant || msg.key.remoteJid,
+          body: msg.message.conversation || 
+                msg.message.extendedTextMessage?.text || '',
+          urls: (msg.message.extendedTextMessage?.matchedText || '')
+                .match(/(https?:\/\/[^\s]+)/g) || [],
+          reply: (content, type = 'text') => {
+            if (type === 'text') return sock.sendMessage(msg.key.remoteJid, { text: content });
+            if (type === 'image') return sock.sendMessage(msg.key.remoteJid, { image: { url: content } });
+            if (type === 'video') return sock.sendMessage(msg.key.remoteJid, { video: { url: content } });
+          },
+          replyRaw: (content) => sock.sendMessage(msg.key.remoteJid, content)
+        };
 
-    try {
-      await handler.handle(M);
-    } catch (e) {
-      errorLog(`Command failed: ${e.message}`);
-      M.reply('❌ Oops! Something went wrong~ 💔\n' + e.message);
-    }
-  });
+        await handler.handle(M);
+      } catch (e) {
+        errorLog(`Message handling error: ${e.message}`);
+      }
+    });
+
+  } catch (err) {
+    errorLog(`Connection error: ${err.message}`);
+    setTimeout(connectToWhatsApp, 10000); // Reconnect after 10 seconds
+  }
 }
 
-// 🎀 Start with cute splash text
+// 🎀 Startup banner
 console.log(chalk.yellow(`
-🌸✨🎀 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 𝗖𝗵𝗲𝘆-𝗦𝗮𝗻'𝘀 𝗕𝗼𝘁! 🎀✨🌸
+╔════════════════════════════╗
+║                            ║
+║   🌸 Chey-San Music Bot 🎶  ║
+║                            ║
+╚════════════════════════════╝
 `));
 
-connectToWhatsApp().catch(err => errorLog(`Startup failed: ${err.message}`));
+// Start the bot
+connectToWhatsApp();
