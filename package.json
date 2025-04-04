@@ -1,38 +1,23 @@
 {
   "name": "anya-music-bot",
-  "version": "3.0.0",
-  "description": "💖 Adorable WhatsApp Music Bot 🎀 Powered by Chey-San ✨",
+  "version": "3.1.0",
+  "description": "Ultimate WhatsApp Music Bot",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "security-check": "npm audit --production --audit-level=critical"
+    "fix-deps": "rm -rf node_modules package-lock.json && npm install"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.6.1",
-    "pino": "^8.16.0",
+    "axios": "^1.6.2",
+    "file-type": "^18.0.0",
+    "fluent-ffmpeg": "^2.1.2",
     "qrcode-terminal": "^0.12.0",
     "ytdl-core": "^4.14.0",
-    "ytsr": "^3.8.1",
-    "axios": "^1.6.2",
-    "form-data": "^4.0.0",
-    "file-type": "^18.0.0",
-    "chalk": "^5.3.0",
-    "fluent-ffmpeg": "^2.1.2",
-    "jsospath-plus": "^1.0.0"
+    "ytsr": "^3.8.1"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "overrides": {
-    "jsospath-plus": "^1.0.0"
-  },
-  "keywords": [
-    "whatsapp-bot",
-    "music-bot",
-    "cute-bot"
-  ],
-  "author": "Chey-San",
-  "license": "MIT"
+  }
 }
